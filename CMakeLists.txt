@@ -59,45 +59,57 @@
 
 ###########################################################################################
 cmake_minimum_required(VERSION 3.10)
+
+include(cmake/HunterGate.cmake)
+
+HunterGate(
+        URL "https://github.com/ruslo/hunter/archive/v0.23.165.tar.gz"
+        SHA1 "5a73f91df5f6109c0bb1104d0c0ee423f7bece79"
+)
+
+
 project(sml LANGUAGES CXX)
 include(CTest)
 
 option(SML_BUILD_BENCHMARKS "Build benchmarks" ON)
-option(SML_BUILD_DOCS       "Build docs"       ON)
-option(SML_BUILD_EXAMPLES   "Build examples"   ON)
-option(SML_BUILD_TESTS      "Build tests"      ON)
-option(SML_USE_EXCEPTIONS   "Do not disable exceptions" ON)
+option(SML_BUILD_DOCS "Build docs" ON)
+option(SML_BUILD_EXAMPLES "Build examples" ON)
+option(SML_BUILD_TESTS "Build tests" ON)
+option(SML_USE_EXCEPTIONS "Do not disable exceptions" ON)
+option(SML_IMBUE_TARGET_WITH_RULES "Poison the sml library target with compiler options" OFF)
 
-# sml use hana library, according to hana documentation GCC >= 6.0.0
-# http://www.boost.org/doc/libs/release/libs/hana/doc/html/index.html#tutorial-installation-requirements
-# https://github.com/boostorg/hana/wiki/General-notes-on-compiler-support
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 6.0.0)
-  message(FATAL_ERROR "sml requires GCC >= 6.0.0")
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND "${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 3.5.0)
-  message(FATAL_ERROR "sml requires Clang >= 3.5.0")
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.0)
-  message(FATAL_ERROR "sml requires Visual Studio 14 2015 at least")
-endif()
+if (NOT DEFINED CMAKE_CXX_STANDARD)
+    # sml use hana library, according to hana documentation GCC >= 6.0.0
+    # http://www.boost.org/doc/libs/release/libs/hana/doc/html/index.html#tutorial-installation-requirements
+    # https://github.com/boostorg/hana/wiki/General-notes-on-compiler-support
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND "${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 6.0.0)
+        message(FATAL_ERROR "sml requires GCC >= 6.0.0")
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND "${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 3.5.0)
+        message(FATAL_ERROR "sml requires Clang >= 3.5.0")
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.0)
+        message(FATAL_ERROR "sml requires Visual Studio 14 2015 at least")
+    endif ()
 
-# c++14 required
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag(-std=c++14 HAS_CXX14_FLAG)
-check_cxx_compiler_flag(-std=c++17 HAS_CXX17_FLAG)
-check_cxx_compiler_flag(-std=c++2a HAS_CXX20_FLAG)
+    # c++14 required
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag(-std=c++14 HAS_CXX14_FLAG)
+    check_cxx_compiler_flag(-std=c++17 HAS_CXX17_FLAG)
+    check_cxx_compiler_flag(-std=c++2a HAS_CXX20_FLAG)
 
-if(HAS_CXX20_FLAG)
-  set(CMAKE_CXX_STANDARD 20)
-elseif(HAS_CXX17_FLAG)
-  set(CMAKE_CXX_STANDARD 17)
-elseif(HAS_CXX14_FLAG)
-  set(CMAKE_CXX_STANDARD 14)
-else()
-  message(FATAL_ERROR "sml requires c++14")
-endif()
+    if (HAS_CXX20_FLAG)
+        set(CMAKE_CXX_STANDARD 20)
+    elseif (HAS_CXX17_FLAG)
+        set(CMAKE_CXX_STANDARD 17)
+    elseif (HAS_CXX14_FLAG)
+        set(CMAKE_CXX_STANDARD 14)
+    else ()
+        message(FATAL_ERROR "sml requires c++14")
+    endif ()
+endif ()
 
-if(NOT (DEFINED CMAKE_CXX_STANDARD) OR CMAKE_CXX_STANDARD STREQUAL "" OR CMAKE_CXX_STANDARD LESS 14)
+if (NOT (DEFINED CMAKE_CXX_STANDARD) OR CMAKE_CXX_STANDARD STREQUAL "" OR CMAKE_CXX_STANDARD LESS 14)
     message(FATAL_ERROR "sml requires c++14")
-endif()
+endif ()
 
 include(GNUInstallDirs)
 install(DIRECTORY "include/boost" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
@@ -108,61 +120,63 @@ install(DIRECTORY "include/boost" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 #endif()
 
 set(CXX_STANDARD_REQUIRED ON)
-#message(STATUS "CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}")
 
 # Turn on the .vcproj folder support
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-find_package(Boost REQUIRED)
+hunter_add_package(Boost)
+find_package(Boost CONFIG REQUIRED)
 
 add_library(sml INTERFACE)
 
 target_include_directories(sml
-    INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+        INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
 target_link_libraries(sml
-    INTERFACE Boost::boost)
+        INTERFACE Boost::boost)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_compile_definitions(sml
-      INTERFACE NOMINMAX # avoid Win macro definition of min/max, use std one
-      INTERFACE _SCL_SECURE_NO_WARNINGS # disable security-paranoia warning
-      INTERFACE _CRT_SECURE_NO_WARNINGS)
+            INTERFACE NOMINMAX # avoid Win macro definition of min/max, use std one
+            INTERFACE _SCL_SECURE_NO_WARNINGS # disable security-paranoia warning
+            INTERFACE _CRT_SECURE_NO_WARNINGS)
     #target_compile_options(sml
     #  INTERFACE "/W3" # waring level
     #  INTERFACE "/WX") # warning as error
-    if(CMAKE_CXX_STANDARD GREATER_EQUAL 17)
-      # benchmark\complex\sc.cpp(18): warning C4996: 'std::allocator<void>': warning STL4009: std::allocator<void> is deprecated in C++1
-      target_compile_definitions(sml
-        INTERFACE _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
-    endif()
+    if (CMAKE_CXX_STANDARD GREATER_EQUAL 17)
+        # benchmark\complex\sc.cpp(18): warning C4996: 'std::allocator<void>': warning STL4009: std::allocator<void> is deprecated in C++1
+        target_compile_definitions(sml
+                INTERFACE _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
+    endif ()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") # gcc
-    # https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
-    target_compile_options(sml
-      INTERFACE "-Wfatal-errors" # stops on first error
-      INTERFACE "-Wall" # enables all the warnings about constructions
-      INTERFACE "-Wextra" # Print extra warning messages"
-      INTERFACE "-Werror" # Make all warnings into errors.
-      INTERFACE "-pedantic" # Issue all the warnings demanded by strict ISO C and ISO C++
-      INTERFACE "-pedantic-errors" # Like -pedantic, except that errors are produced rather than warnings
-      # http://stackoverflow.com/questions/30255294/how-to-hide-extra-output-from-pragma-message
-      INTERFACE "-ftrack-macro-expansion=0"
-      INTERFACE "-fno-diagnostics-show-caret"
-      )
+    if (SML_IMBUE_TARGET_WITH_RULES)
+        # https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
+        target_compile_options(sml
+                INTERFACE "-Wfatal-errors" # stops on first error
+                INTERFACE "-Wall" # enables all the warnings about constructions
+                INTERFACE "-Wextra" # Print extra warning messages"
+                INTERFACE "-Werror" # Make all warnings into errors.
+                INTERFACE "-pedantic" # Issue all the warnings demanded by strict ISO C and ISO C++
+                INTERFACE "-pedantic-errors" # Like -pedantic, except that errors are produced rather than warnings
+                # http://stackoverflow.com/questions/30255294/how-to-hide-extra-output-from-pragma-message
+                INTERFACE "-ftrack-macro-expansion=0"
+                INTERFACE "-fno-diagnostics-show-caret"
+                )
 
-    if (NOT ${SML_USE_EXCEPTIONS})
-      target_compile_options(sml
-        INTERFACE "-fno-exceptions" # compiles without exception support
-        )
-    endif()
+        if (NOT ${SML_USE_EXCEPTIONS})
+            target_compile_options(sml
+                    INTERFACE "-fno-exceptions" # compiles without exception support
+                    )
+        endif ()
+    endif ()
 endif ()
 
 include_directories(INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
 function(add_example exe_name bm_name src_name)
-  add_executable(${exe_name} ${src_name})
-  target_link_libraries(${exe_name} PUBLIC sml)
-  add_test(${bm_name} ${exe_name})
+    add_executable(${exe_name} ${src_name})
+    target_link_libraries(${exe_name} PUBLIC sml)
+    add_test(${bm_name} ${exe_name})
 endfunction()
 
 if (SML_BUILD_BENCHMARKS)
