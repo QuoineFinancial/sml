@@ -68,7 +68,8 @@ HunterGate(
 )
 
 
-project(sml LANGUAGES CXX)
+project(BoostSML LANGUAGES CXX VERSION 1.1.0)
+
 include(CTest)
 
 option(SML_BUILD_BENCHMARKS "Build benchmarks" ON)
@@ -111,8 +112,6 @@ if (NOT (DEFINED CMAKE_CXX_STANDARD) OR CMAKE_CXX_STANDARD STREQUAL "" OR CMAKE_
     message(FATAL_ERROR "sml requires c++14")
 endif ()
 
-include(GNUInstallDirs)
-install(DIRECTORY "include/boost" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 #if(NOT (BUILD_BENCHMARKS OR BUILD_DOCS OR BUILD_EXAMPLES OR BUILD_TESTS))
 #    message(STATUS "No targets will be built")
@@ -191,3 +190,56 @@ endif ()
 if (SML_BUILD_TESTS)
     add_subdirectory(test)
 endif ()
+
+
+# installer
+include(GNUInstallDirs)
+
+set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
+set(config_install_dir "lib/cmake/${PROJECT_NAME}")
+set(include_install_dir "include/boost")
+set(lib_install_dir "lib")
+set(pkgconfig_install_dir "lib/pkgconfig")
+
+set(version_config "${generated_dir}/${PROJECT_NAME}ConfigVersion.cmake")
+set(project_config "${generated_dir}/${PROJECT_NAME}Config.cmake")
+set(pkg_config "${generated_dir}/${PROJECT_NAME}.pc")
+set(targets_export_name "${PROJECT_NAME}Targets")
+set(namespace "Boost::")
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+        "${version_config}" COMPATIBILITY SameMajorVersion
+)
+
+configure_file("cmake/BoostSML.pc.in" "${pkg_config}" @ONLY)
+
+configure_package_config_file(
+        "cmake/Config.cmake.in"
+        "${project_config}"
+        INSTALL_DESTINATION "${config_install_dir}"
+)
+
+INSTALL(TARGETS sml
+        EXPORT "${targets_export_name}"
+        INCLUDES DESTINATION "${include_install_dir}"
+        ARCHIVE DESTINATION "${lib_install_dir}")
+
+install(DIRECTORY "include/boost" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+
+install(
+        FILES "${project_config}" "${version_config}"
+        DESTINATION "${config_install_dir}"
+)
+
+install(
+        FILES "${pkg_config}"
+        DESTINATION "${pkgconfig_install_dir}"
+)
+
+install(
+        EXPORT "${targets_export_name}"
+        NAMESPACE "${namespace}"
+        DESTINATION "${config_install_dir}"
+)
